@@ -8,6 +8,7 @@ __package__ = "lastfm"
 
 from lastfm.base import LastfmBase
 from lastfm.mixin import mixin
+from lastfm.util import UTC, safe_int
 from lastfm.decorators import cached_property, top_property
 
 @mixin("crawlable", "taggable", "searchable", 
@@ -170,17 +171,17 @@ class Album(LastfmBase):
     
     def _fill_info(self):
         data = Album._fetch_data(self._api, self.artist.name, self.name)
-        self._id = int(data.findtext('id'))
+        self._id = safe_int(data.findtext('id'))
         self._mbid = data.findtext('mbid')
         self._url = data.findtext('url')
         self._release_date = data.findtext('releasedate') and data.findtext('releasedate').strip() and \
-                            datetime(*(time.strptime(data.findtext('releasedate').strip(), '%d %b %Y, 00:00')[0:6]))
+                            datetime(*(time.strptime(data.findtext('releasedate').strip(), '%d %b %Y, 00:00')[0:6])).replace(tzinfo = UTC)
         self._image = dict([(i.get('size'), i.text) for i in data.findall('image')])
         if not self._stats:
             self._stats = Stats(
                        subject = self,
-                       listeners = int(data.findtext('listeners')),
-                       playcount = int(data.findtext('playcount')),
+                       listeners = safe_int(data.findtext('listeners')),
+                       playcount = safe_int(data.findtext('playcount')),
                        )
         self._top_tags = [
                     Tag(
@@ -201,7 +202,7 @@ class Album(LastfmBase):
                                       api,
                                       name = album.findtext('artist')
                                       ),
-                      id = int(album.findtext('id')),
+                      id = safe_int(album.findtext('id')),
                       url = album.findtext('url'),
                       image = dict([(i.get('size'), i.text) for i in album.findall('image')]),
                       streamable = (album.findtext('streamable') == '1'),

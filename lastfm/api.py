@@ -7,7 +7,7 @@ __license__ = "GNU Lesser General Public License"
 __package__ = "lastfm"
 
 from threading import Lock
-from lastfm.util import Wormhole, logging
+from lastfm.util import Wormhole, logging, UTC, safe_int, safe_float
 from lastfm.decorators import cached_property, async_callback
 _lock = Lock()
 
@@ -65,7 +65,6 @@ class Api(object):
         self._api_key = api_key
         self._secret = secret
         self._session_key = session_key
-        self._cache = FileCache()
         self._urllib = urllib2
         self._cache_timeout = Api.DEFAULT_CACHE_TIMEOUT
         self._initialize_request_headers(request_headers)
@@ -73,7 +72,11 @@ class Api(object):
         self._input_encoding = input_encoding
         self._no_cache = no_cache
         self._logfile = logfile
-        self._last_fetch_time = datetime.now()
+        self._last_fetch_time = datetime.utcnow().replace(tzinfo = UTC)
+        if(self._no_cache):
+            self._cache = None
+        else:
+            self._cache = FileCache()
         
         if debug is not None:
             if debug in Api.DEBUG_LEVELS:
@@ -667,13 +670,13 @@ class Api(object):
 
     def _read_url_data(self, opener, url, data = None):
         with _lock:
-            now = datetime.now()
+            now = datetime.utcnow().replace(tzinfo = UTC)
             delta = now - self._last_fetch_time
-            delta = delta.seconds + float(delta.microseconds)/1000000
+            delta = delta.seconds + safe_float(delta.microseconds)/1000000
             if delta < Api.FETCH_INTERVAL:
                 time.sleep(Api.FETCH_INTERVAL - delta)
             url_data = opener.open(url, data).read()
-            self._last_fetch_time = datetime.now()
+            self._last_fetch_time = datetime.utcnow().replace(tzinfo = UTC)
         return url_data
 
     @Wormhole.entrance('lfm-api-raw-data')
@@ -774,7 +777,7 @@ class Api(object):
         except SyntaxError, e:
             raise OperationFailedError("Error in parsing XML: %s" % e)
         if data.get('status') != "ok":
-            code = int(data.find("error").get('code'))
+            code = safe_int(data.find("error").get('code'))
             message = data.findtext('error')
             if code in error_map.keys():
                 raise error_map[code](message, code)
@@ -815,14 +818,14 @@ else:
     from hashlib import md5
     def md5hash(string):
         return md5(string).hexdigest()
-    
-if sys.version_info >= (2, 5):
+   
+try:
     import xml.etree.cElementTree as ElementTree
-else:
+except ImportError:
     try:
         import cElementTree as ElementTree
     except ImportError:
         try:
             import ElementTree
         except ImportError:
-            raise LastfmError("Install ElementTree package for using python-lastfm")
+            raise ImportError("Install ElementTree package for using python-lastfm")

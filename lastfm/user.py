@@ -233,10 +233,12 @@ class User(LastfmBase):
                 for t in data.findall('track')
                 ]
 
-    def get_recent_tracks(self, limit = None):
+    def get_recent_tracks(self, limit = None, page = None):
         params = self._default_params({'method': 'user.getRecentTracks'})
         if limit is not None:
             params.update({'limit': limit})
+        if page is not None:
+            params.update({'page': page})
         data = self._api._fetch_data(params, no_cache = True).find('recenttracks')
         return [
                 Track(

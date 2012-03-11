@@ -238,6 +238,8 @@ class User(LastfmBase):
         params = self._default_params({'method': 'user.getRecentTracks'})
         if limit is not None:
             params.update({'limit': limit})
+        if page is not None:
+            params.update({'page': page})
         data = self._api._fetch_data(params, no_cache = True).find('recenttracks')
         return [
                 Track(

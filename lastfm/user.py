@@ -234,7 +234,7 @@ class User(LastfmBase):
                 for t in data.findall('track')
                 ]
 
-    def get_recent_tracks(self, limit = None):
+    def get_recent_tracks(self, limit = None, page=None):
         params = self._default_params({'method': 'user.getRecentTracks'})
         if limit is not None:
             params.update({'limit': limit})
